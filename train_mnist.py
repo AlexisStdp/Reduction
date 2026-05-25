@@ -9,8 +9,8 @@ import lightning as L
 class MNISTClassifier(L.LightningModule):
     def __init__(self):
         super(MNISTClassifier, self).__init__()
-        # self.model = Stack(784, 1024, 10, dropout=0.1, activation=F.silu)
-        self.model = FFN(784, 1024, 10)
+        self.model = Stack(784, 1024, 10, dropout=0.1, activation=F.relu)
+        # self.model = FFN(784, 1024, 10)
     
     def forward(self, x):
         x = x.view(-1, 784)
