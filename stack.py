@@ -57,6 +57,17 @@ class Stack(nn.Module):
         self.affine2.bias = nn.Parameter(weights[3])
         self.affine_skip.weight = nn.Parameter(weights[4])
 
+class doubleStack(nn.Module):
+    def __init__(self, neurons_per_layer=[1, 1024, 1, 1024, 1], dropout=0.1, activation=F.relu):
+        super(doubleStack, self).__init__()
+        self.stack1 = Stack(neurons_per_layer[0], neurons_per_layer[1], neurons_per_layer[2], dropout=dropout, activation=activation)
+        self.stack2 = Stack(neurons_per_layer[2], neurons_per_layer[3], neurons_per_layer[4], dropout=dropout, activation=activation)
+
+    def forward(self, x):
+        out = self.stack1(x)
+        out = self.stack2(out)
+        return out
+
 class svdStack(nn.Module):
     def __init__(self, input_dim, hidden_dim, output_dim, hidden_affine_dim=0):
         super(svdStack, self).__init__()
@@ -147,11 +158,18 @@ class FFN(nn.Module):
 
 
 if __name__ == '__main__':
-    input_dim = 10
-    hidden_dim = 5
-    output_dim = 3
-    model = Stack(input_dim, hidden_dim, output_dim)
-    x = torch.randn(1, input_dim)
+    # input_dim = 10
+    # hidden_dim = 5
+    # output_dim = 3
+    # model = Stack(input_dim, hidden_dim, output_dim)
+    # x = torch.randn(1, input_dim)
+    # y = model(x)
+    # print(f"Input shape: {x.shape}; Output shape: {y.shape}")
+    # print(y)
+
+    neurons_per_layer=[1, 1024, 1, 1024, 7]
+    model = doubleStack(neurons_per_layer)
+    x = torch.randn(1, neurons_per_layer[0])
     y = model(x)
     print(f"Input shape: {x.shape}; Output shape: {y.shape}")
     print(y)
