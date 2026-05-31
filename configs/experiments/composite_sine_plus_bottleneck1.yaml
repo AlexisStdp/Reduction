@@ -1,0 +1,53 @@
+seed: 42
+
+experiment:
+  name: composite_sine_plus_bottleneck1
+  run_dir: runs/composite_sine_plus_bottleneck1
+
+dataset:
+  n_train: 256
+  n_val: 256
+  function: compositeSinePlus
+  p: [0.4, 1.0, 2.0, -3.0]
+  interval: [-1.0, 1.0]
+  noise_std: 0.05
+  train_seed: 42
+  val_seed: 43
+
+dataloader:
+  batch_size: null
+  num_workers: auto
+  pin_memory: auto
+  persistent_workers: true
+  prefetch_factor: 2
+
+model:
+  input_dim: 1
+  hidden_dim_1: 1024
+  bottleneck_dim: 1
+  hidden_dim_2: 1024
+  dropout: 0.1
+
+optimizer:
+  lr: 0.001
+  weight_decay: 0.001
+
+trainer:
+  max_epochs: 2000
+  check_val_every_n_epoch: 500
+  accelerator: auto
+  devices: auto
+  enable_checkpointing: true
+  log_every_n_steps: 1
+
+checkpoint:
+  dirpath: auto
+  filename: epoch={epoch:04d}-val_loss={val_loss:.6f}
+  monitor: val_loss
+  mode: min
+  save_top_k: 1
+  save_last: true
+  every_n_epochs: 500
+
+visualization:
+  output_dir: auto
