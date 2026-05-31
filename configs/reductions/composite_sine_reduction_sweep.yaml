@@ -1,0 +1,46 @@
+name: composite_sine_reduction_sweep
+
+sources:
+  # - config: configs/experiments/composite_sine_plus_bottleneck1.yaml
+  #   checkpoint: auto
+  #   output_dir: auto
+  # - config: configs/experiments/composite_sine_bottleneck1.yaml
+  #   checkpoint: auto
+  #   output_dir: auto
+  - config: configs/experiments/composite_sine_plus_bottleneck2.yaml
+    checkpoint: auto
+    output_dir: auto
+
+evaluation:
+  n_points: 2048
+  reduction_grid_points: 100
+  save_figures: true
+  save_stage_figures: true
+  show_training_points: false
+  training_points_split: train
+  figure_format: png
+  dpi: 160
+  kink_contribution_mode: v_abs_w
+
+reduction:
+  outside:
+    enabled: true
+  weak:
+    enabled: true
+    threshold_enabled: true
+    min_score: 1.0e-4  # 1.0e-6
+  clustering:
+    enabled: true
+    sample_weight: none
+    reconstruction: kink_center
+  svd_affine:
+    enabled: false
+  numerical:
+    min_v_norm: 1.0e-12
+
+  stack1:
+    clusters: [12]
+    weak_discard: [0]
+  stack2:
+    clusters: [12]
+    weak_discard: [0]

@@ -1,0 +1,35 @@
+name: debug_single_reduction
+
+sources:
+  - config: configs/experiments/composite_sine_bottleneck1.yaml
+    checkpoint: auto
+    output_dir: runs/debug_single_reduction
+
+evaluation:
+  n_points: 2048
+  reduction_grid_points: 100
+  save_figures: false
+  figure_format: png
+  dpi: 160
+
+reduction:
+  outside:
+    enabled: true
+  weak:
+    enabled: true
+    threshold_enabled: true
+    min_score: 1.0e-12
+  clustering:
+    enabled: true
+    sample_weight: none
+  svd_affine:
+    enabled: false
+  numerical:
+    min_v_norm: 0 # 1.0e-12
+
+  stack1:
+    clusters: [100]
+    weak_discard: [5]
+  stack2:
+    clusters: [100]
+    weak_discard: [5]

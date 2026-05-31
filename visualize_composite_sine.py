@@ -5,6 +5,7 @@ import torch
 
 from data_generation import sample_function_grid
 from experiment_config import load_config, resolve_checkpoint_dir, resolve_figure_dir
+from reduction_experiments.model_io import load_dataset_points
 from stack import doubleStack
 
 
@@ -33,6 +34,8 @@ def parse_args():
     )
     parser.add_argument("--format", default="png", choices=["png", "pdf", "svg"], help="Saved figure format.")
     parser.add_argument("--dpi", type=int, default=160, help="DPI used for raster figure output.")
+    parser.add_argument("--show-training-points", action="store_true", help="Overlay training or validation data points.")
+    parser.add_argument("--training-split", default="train", choices=["train", "val"], help="Dataset split used for point overlays.")
     parser.add_argument("--no-show", action="store_true", help="Do not display figures interactively.")
     return parser.parse_args()
 
@@ -56,6 +59,18 @@ def build_model(config, function):
     return doubleStack(neurons_per_layer, dropout=model_config.get("dropout", 0.0))
 
 
+def build_model_from_state_dict(state_dict, dropout=0.0):
+    state_dict = normalize_state_dict_keys(state_dict)
+    neurons_per_layer = [
+        state_dict["stack1.affine1.weight"].shape[1],
+        state_dict["stack1.affine1.weight"].shape[0],
+        state_dict["stack1.affine2.weight"].shape[0],
+        state_dict["stack2.affine1.weight"].shape[0],
+        state_dict["stack2.affine2.weight"].shape[0],
+    ]
+    return doubleStack(neurons_per_layer, dropout=dropout)
+
+
 def load_checkpoint(model, checkpoint_path):
     if not checkpoint_path.exists():
         raise FileNotFoundError(f"Checkpoint file not found: {checkpoint_path}")
@@ -63,7 +78,11 @@ def load_checkpoint(model, checkpoint_path):
     checkpoint = torch.load(checkpoint_path, map_location="cpu")
     state_dict = checkpoint.get("state_dict", checkpoint)
     state_dict = normalize_state_dict_keys(state_dict)
-    model.load_state_dict(state_dict)
+    try:
+        model.load_state_dict(state_dict)
+    except RuntimeError:
+        model = build_model_from_state_dict(state_dict, dropout=0.0)
+        model.load_state_dict(state_dict)
     model.eval()
     return model
 
@@ -85,6 +104,16 @@ def save_figures(figures, output_dir, file_format, dpi):
         print(f"Saved {path}")
 
 
+def resolve_output_dir(config, checkpoint_path, output_dir):
+    if output_dir is not None:
+        return output_dir
+
+    checkpoint_path = Path(checkpoint_path)
+    if checkpoint_path.name == "reduced_checkpoint.pt":
+        return checkpoint_path.parent / "figures"
+    return resolve_figure_dir(config)
+
+
 def main():
     args = parse_args()
     show = not args.no_show
@@ -96,6 +125,7 @@ def main():
 
     import matplotlib.pyplot as plt
     from visualization import (
+        plot_model_kink_figures,
         plot_bottleneck_representation,
         plot_bottleneck_plane,
         plot_model_predictions,
@@ -109,10 +139,14 @@ def main():
     p = dataset_config["p"]
     interval = tuple(dataset_config["interval"])
     checkpoint_path = args.checkpoint or (resolve_checkpoint_dir(config) / "last.ckpt")
-    output_dir = args.output_dir or resolve_figure_dir(config)
+    output_dir = resolve_output_dir(config, checkpoint_path, args.output_dir)
 
     model = build_model(config, function)
-    load_checkpoint(model, checkpoint_path)
+    model = load_checkpoint(model, checkpoint_path)
+    train_x = None
+    train_y = None
+    if args.show_training_points:
+        train_x, train_y = load_dataset_points(config, split=args.training_split)
 
     figures = [
         (
@@ -121,7 +155,15 @@ def main():
         ),
         (
             "model_predictions",
-            plot_model_predictions(model, function=function, p=p, interval=interval, n_points=args.n_points)[0],
+            plot_model_predictions(
+                model,
+                function=function,
+                p=p,
+                interval=interval,
+                n_points=args.n_points,
+                train_x=train_x,
+                train_y=train_y,
+            )[0],
         ),
         (
             "residuals",
@@ -135,10 +177,11 @@ def main():
                 p=p,
                 interval=interval,
                 n_points=args.n_points,
+                train_x=train_x,
             )[0],
         ),
     ]
-    if config["model"]["bottleneck_dim"] >= 2:
+    if model.stack1.affine2.out_features >= 2:
         figures.append(
             (
                 "bottleneck_plane",
@@ -148,9 +191,21 @@ def main():
                     p=p,
                     interval=interval,
                     n_points=args.n_points,
+                    train_x=train_x,
                 )[0],
             )
         )
+
+    figures.extend(
+        plot_model_kink_figures(
+            model,
+            function=function,
+            p=p,
+            interval=interval,
+            n_points=args.n_points,
+            train_x=train_x,
+        )
+    )
 
     if args.save:
         save_figures(figures, output_dir, args.format, args.dpi)
